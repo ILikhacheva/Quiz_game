@@ -1,3 +1,4 @@
+  <body>
 <!DOCTYPE html>
 <html lang="fi">
   <head>
@@ -11,11 +12,169 @@
     <link href="https://fonts.googleapis.com/css2?family=Sour+Gummy:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div class="header">
-      <h1>Welcome to the game!</h1>
-      <button>Start Quiz</button>
+    <div class="header" style="position:relative;">
+  <div id="greeting-block" style="font-size:32px;color:#f0eded;text-align:center;margin-bottom:8px;"></div>
+  <h1>Welcome to the game!</h1>
+      <div style="position:relative; max-width:800px; margin:32px auto 0 auto;">
+        <div style="display:flex; align-items:center; justify-content:center; gap:24px;">
+          <button id="show-scores-btn" class="btn btn-secondary" style="min-width:110px;">Scores</button>
+          <button id="start-quiz-btn">Start Quiz</button>
+          <button id="sign-in-btn" class="btn btn-primary" style="margin-left:16px;">Sign in</button>
+        </div>
+      </div>
+  <!-- Модальные окна (SignIn, Register, Scores, Game, Name) -->
+  <div id="SignInModalOverlay" class="modal-overlay" style="display:none;">
+    <div id="SignInModal" class="modal-window" style="min-width:320px;max-width:95vw;">
+      <button class="close-btn" onclick="closeSignInModal()" title="Close">×</button>
+      <h2>Sign in</h2>
+      <form id="SignInForm" method="post" action="#">
+        <div class="form-group">
+          <input type="email" id="SignInEmail" name="SignInEmail" placeholder="Email" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div class="form-group">
+          <input type="password" id="SignInPassword" name="SignInPassword" placeholder="Password" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div id="SignInError" style="color:red;display:none;margin-bottom:8px;font-size:14px;"></div>
+        <div class="buttons" style="display:flex;gap:12px;align-items:center;">
+          <button type="submit" class="btn btn-primary">Sign in</button>
+          <button type="button" class="btn btn-secondary" onclick="closeSignInModal()">Cancel</button>
+        </div>
+      </form>
+      <div style="margin-top:12px;text-align:center;font-size:15px;">
+        Don't have an account? <a href="#" id="open-register-link">Register</a>
+      </div>
+    </div>
+  </div>
+  <div id="RegisterModalOverlay" class="modal-overlay" style="display:none;">
+    <div id="RegisterModal" class="modal-window" style="min-width:340px;max-width:95vw;">
+      <button class="close-btn" onclick="closeRegisterModal()" title="Close">×</button>
+      <h2>Register</h2>
+      <form id="RegisterForm" method="post" action="#">
+        <div class="form-group">
+          <input type="email" id="RegisterEmail" name="RegisterEmail" placeholder="Email" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div class="form-group">
+          <input type="password" id="RegisterPassword" name="RegisterPassword" placeholder="Password" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div class="form-group">
+          <input type="password" id="RegisterPassword2" name="RegisterPassword2" placeholder="Repeat password" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div class="form-group">
+          <input type="text" id="RegisterKOD" name="RegisterKOD" placeholder="Code word" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div class="form-group">
+          <input type="text" id="RegisterUserName" name="RegisterUserName" placeholder="User name" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div id="RegisterError" style="color:red;display:none;margin-bottom:8px;font-size:14px;"></div>
+        <div class="buttons" style="display:flex;gap:12px;align-items:center;">
+          <button type="submit" class="btn btn-primary">Register</button>
+          <button type="button" class="btn btn-secondary" onclick="closeRegisterModal()">Cancel</button>
+        </div>
+      </form>
+      <div style="margin-top:12px;text-align:center;font-size:15px;">
+        Already have an account? <a href="#" id="open-signin-link">Sign in</a>
+      </div>
+    </div>
+  </div>
+  <div id="ScoresModalOverlay" class="modal-overlay" style="display:none;">
+    <div id="ScoresModal" class="modal-window" style="min-width:340px;max-width:95vw;">
+      <button class="close-btn" onclick="closeScoresModal()" title="Close">×</button>
+      <h2 style="margin-bottom:18px;">Top-20</h2>
+      <div id="scores-table-container">
+        <table id="scores-table" style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#f7f9fa;">
+              <th style="padding:6px 8px;">Name</th>
+              <th style="padding:6px 8px;">Score</th>
+              <th style="padding:6px 8px;">Time</th>
+              <th style="padding:6px 8px;">Category</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Данные будут подставлены JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div id="GameModalOverlay" class="modal-overlay" style="display: none">
+    <div id="GameModal" class="modal-window">
+      <button class="close-btn" onclick="closeGameModal()" title="Close">×</button>
+      <h2>Make a choice!</h2>
+      <form id="Choice-form" method="post" action="#">
+        <div class="form-group">
+          <label>Difficulty:</label>
+          <div style="display: flex; gap: 16px; align-items: center">
+            <label style="margin: 0">
+              <input type="radio" id="DifficultyEasy" name="UserDifficulty" value="1" checked />
+              Helppo
+            </label>
+            <label style="margin: 0">
+              <input type="radio" id="DifficultyMedium" name="UserDifficulty" value="2" />
+              Vaikeampi
+            </label>
+            <label style="margin: 0">
+              <input type="radio" id="DifficultyHard" name="UserDifficulty" value="3" />
+              Vaikein
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Categories:</label>
+          <div style="display: flex; gap: 16px; align-items: center">
+            <select id="Categories" name="Categories" required>
+              <option value="-1">Select a category...</option>
+            </select>
+          </div>
+        </div>
+        <div class="buttons">
+          <button type="submit" class="btn btn-primary">Start</button>
+          <button type="button" class="btn btn-secondary" onclick="closeGameModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="NameModalOverlay" class="modal-overlay" style="display: none">
+    <div id="NameModal" class="modal-window">
+      <h2>Enter your name</h2>
+      <form id="NameForm" method="post" action="#">
+        <div class="form-group">
+          <input id="EndUserName" name="EndUserName" placeholder="Your Name" style="width: 100%; padding: 8px; font-size: 16px" />
+          <div id="EndUserNameError" style="color: red; display: none; margin-top: 4px; font-size: 14px;"></div>
+        </div>
+        <div class="buttons">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" id="ChangeNameBtn">Change name</button>
+        </div>
+      </form>
+    </div>
+  </div>
+      </div>
       <div class="divider"></div>
     </div>
+    
+      <!-- Модальное окно для топ-20 участников -->
+      <div id="ScoresModalOverlay" class="modal-overlay" style="display:none;">
+        <div id="ScoresModal" class="modal-window" style="min-width:340px;max-width:95vw;">
+          <button class="close-btn" onclick="closeScoresModal()" title="Close">×</button>
+          <h2 style="margin-bottom:18px;">Top-20</h2>
+          <div id="scores-table-container">
+            <table id="scores-table" style="width:100%;border-collapse:collapse;text-align:left;">
+              <thead>
+                <tr style="background:#f7f9fa;">
+                  <th style="padding:6px 8px;">Name</th>
+                  <th style="padding:6px 8px;">Score</th>
+                  <th style="padding:6px 8px;">Time</th>
+                  <th style="padding:6px 8px;">Category</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Данные будут подставлены JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
     <!-- модальное окно: Выбор параметров игры / modal ikkuna: valinta pelin asetuksille -->
     <div id="GameModalOverlay" class="modal-overlay" style="display: none">
@@ -124,11 +283,8 @@
     </div>
 
     <div id="quiz-area">
-      <div
-        id="quiz-top"
-        style="width: 100%; max-width: 600px; margin: 0 auto 8px auto"
-      ></div>
-      <div id="quiz-stats"></div>
+      <div id="quiz-top" style="width: 100%; max-width: 600px; margin: 0 auto 8px auto"></div>
+      <div id="quiz-stats" style="display:none;"></div>
       <div id="quiz-gif-overlay"></div>
       <div id="quiz-container" class="sour-gummy-text" style="margin: 0 auto; max-width: 600px"></div>
     </div>
@@ -140,8 +296,3 @@
     </footer>
     <script src="script.js"></script>
   </body>
-      <div id="quiz-top"></div>
-      <div id="quiz-stats"></div>
-      <div id="quiz-gif-overlay"></div>
-      <div id="quiz-container"></div>
-      </div>

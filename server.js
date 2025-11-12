@@ -167,3 +167,84 @@ app.get("/top-participants", async (req, res) => {
     res.status(500).json([]);
   }
 });
+
+// Получить топ-20 участников с категориями (GET /top-participants-full)
+app.get("/top-participants-full", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.name, p.score, p."time", c.name as category_name
+      FROM public.participants p
+      LEFT JOIN categories c ON c.category_id = p.category_id
+      ORDER BY p.score DESC, p."time" ASC
+      LIMIT 20`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("DB ERROR /top-participants-full:", err);
+    res.status(500).json([]);
+  }
+});
+
+// Вход пользователя (POST /login)
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password required." });
+    }
+    // Найти пользователя по email
+    const userResult = await pool.query(
+      "SELECT user_id, user_name, user_password FROM users WHERE user_email = $1",
+      [email]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: "Invalid email or password." });
+    }
+    const user = userResult.rows[0];
+    // Проверить пароль
+    const match = await bcrypt.compare(password, user.user_password);
+    if (!match) {
+      return res.status(400).json({ error: "Invalid email or password." });
+    }
+    // Можно добавить генерацию токена, но пока просто успех
+    res.json({ success: true, userName: user.user_name });
+  } catch (err) {
+    console.error("DB ERROR /login:", err);
+    res.status(500).json({ error: "Server error." });
+  }
+});
+// Регистрация пользователя (POST /register)
+app.post("/register", async (req, res) => {
+  try {
+    const { email, password, password2, kod, userName } = req.body;
+    if (!email || !password || !password2 || !kod || !userName) {
+      return res.status(400).json({ error: "All fields are required." });
+    }
+    if (password !== password2) {
+      return res.status(400).json({ error: "Passwords do not match." });
+    }
+    if (kod !== process.env.KOD) {
+      return res.status(400).json({ error: "Invalid code word." });
+    }
+    // Проверка, что email не занят
+    const userCheck = await pool.query(
+      "SELECT user_id FROM users WHERE user_email = $1",
+      [email]
+    );
+    if (userCheck.rows.length > 0) {
+      return res.status(400).json({ error: "Email already registered." });
+    }
+    // Хешируем пароль
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    // Сохраняем пользователя
+    await pool.query(
+      `INSERT INTO users (user_name, user_password, user_email) VALUES ($1, $2, $3)`,
+      [userName, hashedPassword, email]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DB ERROR /register:", err);
+    res.status(500).json({ error: "Server error." });
+  }
+});

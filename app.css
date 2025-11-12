@@ -1,0 +1,239 @@
+.sour-gummy-text {
+  font-family: "Sour Gummy", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
+}
+
+#quiz-stats {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto 18px auto;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 500;
+  color: rgb(249, 247, 245);
+}
+#quiz-area {
+  position: relative;
+  min-height: 400px;
+}
+
+#quiz-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#quiz-gif-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 100;
+}
+/* Стили для ответов викторины */
+#quiz-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#quiz-container h3 {
+  text-align: center;
+  width: 100%;
+  font-size: 24px;
+  font-weight: 600;
+  color: rgb(249, 247, 245);
+}
+
+#quiz-container .quiz-answer {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 14px 0;
+  font-size: 20px;
+  border-radius: 10px;
+  border: 2px solid #357ab8;
+  background: #f7f9fa;
+  color: #357ab8;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  margin-bottom: 8px;
+}
+
+#quiz-container .quiz-answer:hover {
+  background: #357ab8;
+  color: #fff;
+}
+body {
+  position: relative;
+  z-index: 0;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("education.jpg") center center/cover no-repeat;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.header {
+  text-align: center;
+  margin-top: 50px;
+}
+.header h1 {
+  font-size: 48px;
+  color: #fffdfd;
+}
+.divider {
+  width: 100vw;
+  height: 10px;
+  background-color: #333;
+  margin: 0;
+  border: 0;
+  position: relative;
+}
+/* Глобальные стили для обеспечения липкого футера / Globaalit tyylit tahmealle footerille */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+footer {
+  margin-top: auto;
+}
+
+footer > div {
+  text-align: left;
+  padding-left: 24px;
+  margin-top: 24px;
+}
+.header button {
+  display: block;
+  margin: 32px auto;
+  padding: 12px 32px;
+  background-color: #c0c2c4;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.header button:hover {
+  background-color: #357ab8;
+}
+
+/* стили для модального оверлея и окна / Modalin peite- ja ikkunatyylit */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.modal-window {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: 32px 28px 24px 28px;
+  min-width: 320px;
+  max-width: 95vw;
+  max-height: 90vh;
+  width: 400px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 2001;
+  background-color: #f7f9fa;
+}
+.modal-window h2 {
+  text-align: center;
+  color: #4a4a4a;
+  margin-bottom: 30px;
+}
+.modal-window .close-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #888;
+}
+
+/* Стили для формы в модальном окне */
+.modal-window form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.modal-window .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.modal-window input[type="text"] {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #bfc4c9;
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.modal-window .buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.modal-window .btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.modal-window .btn-primary {
+  background-color: #357ab8;
+  color: #fff;
+}
+.modal-window .btn-primary:hover {
+  background-color: #285a8c;
+}
+.modal-window .btn-secondary {
+  background-color: #c0c2c4;
+  color: #333;
+}
+.modal-window .btn-secondary:hover {
+  background-color: #a0a2a4;
+}

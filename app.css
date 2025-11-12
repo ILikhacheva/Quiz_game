@@ -52,7 +52,7 @@
   width: 100%;
   font-size: 24px;
   font-weight: 600;
-  color: rgb(249, 247, 245);
+  color: #fdfdf9;
 }
 
 #quiz-container .quiz-answer {
@@ -140,7 +140,7 @@ footer > div {
   transition: background 0.2s;
 }
 .header button:hover {
-  background-color: #357ab8;
+  background-color: #8f9091;
 }
 
 /* стили для модального оверлея и окна / Modalin peite- ja ikkunatyylit */

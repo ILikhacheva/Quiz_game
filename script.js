@@ -1,3 +1,157 @@
+// --- Name Modal Logic ---
+function showNameModal() {
+  const overlay = document.getElementById("NameModalOverlay");
+  const modal = document.getElementById("NameModal");
+  const nameInput = document.getElementById("EndUserName");
+  const errorDiv = document.getElementById("EndUserNameError");
+  if (overlay && modal) {
+    overlay.style.display = "flex";
+    modal.style.display = "block";
+    if (nameInput) nameInput.value = quizState.userName || "";
+    if (errorDiv) errorDiv.style.display = "none";
+    setTimeout(() => {
+      if (nameInput) nameInput.focus();
+    }, 100);
+  }
+}
+
+function hideNameModal() {
+  const overlay = document.getElementById("NameModalOverlay");
+  const modal = document.getElementById("NameModal");
+  if (overlay && modal) {
+    overlay.style.display = "none";
+    modal.style.display = "none";
+  }
+}
+
+async function checkParticipantName(name) {
+  if (!name) return false;
+  try {
+    const res = await fetch(
+      `http://localhost:3000/check-participant?name=${encodeURIComponent(name)}`
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.exists;
+  } catch {
+    return false;
+  }
+}
+
+async function sendResultAndUpdateTop(result) {
+  try {
+    // Добавляем category_id из состояния
+    const categoryId = quizState.category_id || null;
+    const resultWithCategory = { ...result, category_id: categoryId };
+    await fetch("http://localhost:3000/add-participant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(resultWithCategory),
+    });
+  } catch {}
+  // Просто обновляем имя и вызываем updateStats, чтобы имя появилось в stats
+  quizState.userName = result.name || quizState.userName || "";
+  updateStats();
+}
+
+// --- Name Modal Event Handlers ---
+document.addEventListener("DOMContentLoaded", function () {
+  const nameForm = document.getElementById("NameForm");
+  const nameInput = document.getElementById("EndUserName");
+  const errorDiv = document.getElementById("EndUserNameError");
+  const overlay = document.getElementById("NameModalOverlay");
+  const changeNameBtn = document.getElementById("ChangeNameBtn");
+  // Флаг: пользователь подтвердил дубликат имени
+  let allowDuplicateName = false;
+  if (nameForm) {
+    nameForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      if (name.length > 32) {
+        errorDiv.textContent = "The name is too long (max 32 characters)";
+        errorDiv.style.display = "block";
+        return;
+      }
+      if (name.length === 0) {
+        // Разрешить пропуск (аноним)
+        hideNameModal();
+        const seconds = quizState.startTime
+          ? Math.floor((Date.now() - quizState.startTime) / 1000)
+          : 0;
+        await sendResultAndUpdateTop({
+          name: "",
+          score: quizState.score,
+          time: seconds,
+        });
+        allowDuplicateName = false;
+        return;
+      }
+      // Проверка на дубликат
+      if (!allowDuplicateName) {
+        const exists = await checkParticipantName(name);
+        if (exists) {
+          errorDiv.textContent =
+            "This name already exists. Please enter a different one or click again to confirm.";
+          errorDiv.style.display = "block";
+          allowDuplicateName = true;
+          return;
+        }
+      }
+      // Если дошли сюда — либо имя уникально, либо пользователь подтвердил дубликат
+      errorDiv.style.display = "none";
+      hideNameModal();
+      quizState.userName = name;
+      const seconds = quizState.startTime
+        ? Math.floor((Date.now() - quizState.startTime) / 1000)
+        : 0;
+      await sendResultAndUpdateTop({
+        name,
+        score: quizState.score,
+        time: seconds,
+      });
+      allowDuplicateName = false;
+    });
+  }
+  if (changeNameBtn) {
+    changeNameBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (nameInput) nameInput.value = "";
+      if (errorDiv) errorDiv.style.display = "none";
+      if (nameInput) nameInput.focus();
+    });
+  }
+  // Allow closing modal with Escape key or clicking overlay
+  if (overlay) {
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) {
+        hideNameModal();
+        // Save as anonymous
+        const seconds = quizState.startTime
+          ? Math.floor((Date.now() - quizState.startTime) / 1000)
+          : 0;
+        sendResultAndUpdateTop({
+          name: "",
+          score: quizState.score,
+          time: seconds,
+        });
+      }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (overlay.style.display === "flex" && e.key === "Escape") {
+        hideNameModal();
+        // Save as anonymous
+        const seconds = quizState.startTime
+          ? Math.floor((Date.now() - quizState.startTime) / 1000)
+          : 0;
+        sendResultAndUpdateTop({
+          name: "",
+          score: quizState.score,
+          time: seconds,
+        });
+      }
+    });
+  }
+});
 // Заглушка для функции обновления статистики
 function updateStats() {
   // Обновление статистики: очки и время
@@ -6,7 +160,11 @@ function updateStats() {
   const seconds = quizState.startTime
     ? Math.floor((Date.now() - quizState.startTime) / 1000)
     : 0;
-  stats.innerHTML = `<b>Score:</b> ${quizState.score} &nbsp; <b>Time:</b> ${seconds} сек.`;
+  let nameBlock = "";
+  if (quizState.userName && quizState.userName.trim().length > 0) {
+    nameBlock = `<b>Name:</b> ${quizState.userName} &nbsp; `;
+  }
+  stats.innerHTML = `${nameBlock}<b>Score:</b> ${quizState.score} &nbsp; <b>Time:</b> ${seconds} сек.`;
 }
 // --- ОТОБРАЖЕНИЕ ВОПРОСОВ С ПЕРЕХОДОМ ---
 // --- Kysymysten näyttäminen ja siirtyminen ---
@@ -52,6 +210,13 @@ function showQuiz(questions) {
   quizState.current = 0; // Сброс текущего вопроса / Nollaa nykyinen kysymys
   quizState.score = 0; // Сброс очков / Nollaa pisteet
   quizState.startTime = Date.now(); // Запоминаем время старта / Tallennetaan aloitusaika
+  // Сохраняем выбранную категорию
+  const catSelect = document.getElementById("Categories");
+  if (catSelect) {
+    quizState.category_id = parseInt(catSelect.value, 10) || null;
+  } else {
+    quizState.category_id = null;
+  }
   updateStats();
   if (quizState.timerInterval) clearInterval(quizState.timerInterval); // Очищаем старый таймер / Tyhjennetään vanha ajastin
   quizState.timerInterval = setInterval(updateStats, 1000); // Запускаем обновление статистики каждую секунду / Päivitetään tilastot sekunnin välein
@@ -82,11 +247,16 @@ function renderCurrentQuestion() {
   }
   // Проверка завершения викторины
   if (quizState.current >= quizState.questions.length) {
-    quiz.innerHTML = "<p>Quiz completed!</p>";
+    quiz.innerHTML =
+      '<div id="quiz-completed-message" style="font-size: 2.5rem; color: #f8f6d0; text-align: center; margin: 60px 0; font-weight: bold;">Quiz completed!</div>';
     if (quizState.timerInterval) clearInterval(quizState.timerInterval);
-    // Здесь можно вызвать отправку результата, если нужно
+    setTimeout(() => {
+      quiz.innerHTML = "";
+      showNameModal();
+    }, 1000);
     return;
   }
+
   // ...existing code...
 
   // Отобразить текущий вопрос и варианты ответов
@@ -130,33 +300,13 @@ function renderCurrentQuestion() {
   // удалено повторное объявление quiz и gifOverlay
   // (Блок, который затирал содержимое quiz.innerHTML, удалён)
 
-  // Отправить результат и обновить топ-20 / Lähetä tulos ja päivitä top-20
-  async function sendResultAndUpdateTop(result) {
-    try {
-      await fetch("http://localhost:3000/add-participant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result),
-      });
-    } catch {}
-    fetchTopParticipants();
-  }
-
-  // Получить и отобразить топ-20 участников / Hae ja näytä top-20 osallistujaa
-  async function fetchTopParticipants() {
-    try {
-      const res = await fetch("http://localhost:3000/top-participants");
-      if (!res.ok) return;
-      const data = await res.json();
-      // Здесь можно обновить топ-20 участников, если нужно
-    } catch (e) {
-      // обработка ошибок при получении топ-20 участников
-    }
-  }
+  // (Внутренняя sendResultAndUpdateTop удалена, используется только глобальная)
 }
 
 function openGameModal() {
-  document.getElementById("GameModalOverlay").style.display = "flex";
+  // Просто обновляем имя и вызываем updateStats, чтобы имя появилось в stats
+  quizState.userName = result.name || quizState.userName || "";
+  updateStats();
 }
 
 // Скрывает модальное окно
@@ -249,8 +399,8 @@ async function categoriesSelect() {
   }
 }
 
-// Заполнять select при открытии модального окна
-const paikkaBtn = document.querySelector('button[onclick*="openGameModal"]');
-if (paikkaBtn) {
-  paikkaBtn.addEventListener("click", categoriesSelect);
+// Вызывать categoriesSelect при открытии модального окна
+function openGameModal() {
+  document.getElementById("GameModalOverlay").style.display = "flex";
+  categoriesSelect();
 }

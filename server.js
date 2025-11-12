@@ -122,20 +122,23 @@ app.get("/quiz", async (req, res) => {
 // Добавить участника и результат, если входит в топ-20 (POST /add-participant)
 // Lisää osallistuja ja tulos, jos pääsee top-20:een (POST /add-participant)
 app.post("/add-participant", async (req, res) => {
-  const { name, score, time } = req.body;
-  if (!name || typeof score !== "number" || typeof time !== "number") {
+  const { name, score, time, category_id } = req.body;
+  if (
+    !name ||
+    typeof score !== "number" ||
+    typeof time !== "number" ||
+    !category_id
+  ) {
     return res.status(400).json({ error: "Invalid data" });
   }
   try {
-    // Вставляем нового участника (разрешаем дубли имен)
-    // Lisätään uusi osallistuja (sallitaan nimiduplikaatit)
+    // Вставляем нового участника с категорией
     await pool.query(
-      "INSERT INTO participants (name, score, time) VALUES ($1, $2, $3)",
-      [name, score, time]
+      "INSERT INTO participants (name, score, time, category_id) VALUES ($1, $2, $3, $4)",
+      [name, score, time, category_id]
     );
 
     // Оставляем только топ-20 (по очкам, потом по времени)
-    // Säilytetään vain top-20 (pisteet, sitten aika)
     await pool.query(
       `DELETE FROM participants WHERE row_id NOT IN (
         SELECT row_id FROM participants

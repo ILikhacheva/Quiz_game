@@ -2,6 +2,41 @@
 document.addEventListener("DOMContentLoaded", function () {
   // Открытие модалок
   const signInBtn = document.getElementById("sign-in-btn");
+  const addQuestionsBtn = document.getElementById("add-questions-btn");
+  function updateAddQuestionsButton() {
+    if (!addQuestionsBtn) return;
+    if (quizState.userName && quizState.userName.trim().length > 0) {
+      addQuestionsBtn.style.display = "inline-block";
+    } else {
+      addQuestionsBtn.style.display = "none";
+    }
+  }
+
+  // Функция обновления текста кнопки входа
+  function updateSignInButton() {
+    if (!signInBtn) return;
+    if (quizState.userName && quizState.userName.trim().length > 0) {
+      signInBtn.textContent = "Sign out";
+    } else {
+      signInBtn.textContent = "Sign in";
+    }
+    updateAddQuestionsButton();
+  }
+
+  // Обработка клика по кнопке входа/выхода
+  if (signInBtn) {
+    signInBtn.addEventListener("click", function () {
+      if (quizState.userName && quizState.userName.trim().length > 0) {
+        // Выход
+        quizState.userName = "";
+        updateStats();
+        updateSignInButton();
+        updateAddQuestionsButton();
+      } else {
+        openSignInModal();
+      }
+    });
+  }
   const signInOverlay = document.getElementById("SignInModalOverlay");
   const registerOverlay = document.getElementById("RegisterModalOverlay");
   const openRegisterLink = document.getElementById("open-register-link");
@@ -26,7 +61,9 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   window.closeSignInModal = closeSignInModal;
   window.closeRegisterModal = closeRegisterModal;
-  if (signInBtn) signInBtn.addEventListener("click", openSignInModal);
+  // updateSignInButton вызывается при загрузке
+  updateSignInButton();
+  updateAddQuestionsButton();
   if (openRegisterLink)
     openRegisterLink.addEventListener("click", function (e) {
       e.preventDefault();
@@ -81,7 +118,9 @@ document.addEventListener("DOMContentLoaded", function () {
         closeSignInModal();
         quizState.userName = data.userName;
         updateStats();
+        updateSignInButton();
         alert("Welcome, " + data.userName + "!");
+        updateAddQuestionsButton();
       } catch (e) {
         err.textContent = "Server error";
         err.style.display = "block";
@@ -457,6 +496,9 @@ function renderCurrentQuestion() {
     if (quizState.timerInterval) clearInterval(quizState.timerInterval);
     setTimeout(() => {
       quiz.innerHTML = "";
+      // Показать анимацию после завершения игры
+      const welcomeGif = document.getElementById("welcomeGif");
+      if (welcomeGif) welcomeGif.style.display = "block";
       showNameModal();
     }, 1000);
     return;
@@ -517,6 +559,9 @@ function openGameModal() {
 // Скрывает модальное окно
 function closeGameModal() {
   document.getElementById("GameModalOverlay").style.display = "none";
+  // Показать анимацию при отмене/закрытии окна старта
+  const welcomeGif = document.getElementById("welcomeGif");
+  if (welcomeGif) welcomeGif.style.display = "block";
 }
 
 // Добавляем обработчик на кнопку "Start Quiz"
@@ -525,6 +570,9 @@ document.addEventListener("DOMContentLoaded", function () {
   if (startBtn) {
     startBtn.addEventListener("click", function (e) {
       e.preventDefault();
+      // Скрыть анимацию при старте
+      const welcomeGif = document.getElementById("welcomeGif");
+      if (welcomeGif) welcomeGif.style.display = "none";
       openGameModal();
     });
   }

@@ -248,3 +248,70 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ error: "Server error." });
   }
 });
+
+// Добавить вопрос с категорией и ответами (POST /add-question-full)
+app.post("/add-question-full", async (req, res) => {
+  const { category, newCategory, question, difficulty, answers } = req.body;
+  // answers: [{text: '...', correct: true/false}, ...]
+  if (
+    !question ||
+    !Array.isArray(answers) ||
+    answers.length < 2 ||
+    !difficulty
+  ) {
+    return res.status(400).json({ error: "Invalid data" });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    let categoryId;
+    if (category === "__new__") {
+      if (!newCategory || !newCategory.trim())
+        throw new Error("No new category");
+      // Проверяем, есть ли уже такая категория
+      const catRes = await client.query(
+        "SELECT category_id FROM categories WHERE LOWER(name) = LOWER($1)",
+        [newCategory.trim()]
+      );
+      if (catRes.rows.length > 0) {
+        categoryId = catRes.rows[0].category_id;
+      } else {
+        const insCat = await client.query(
+          "INSERT INTO categories (name) VALUES ($1) RETURNING category_id",
+          [newCategory.trim()]
+        );
+        categoryId = insCat.rows[0].category_id;
+      }
+    } else {
+      // Найти id выбранной категории
+      const catRes = await client.query(
+        "SELECT category_id FROM categories WHERE name = $1",
+        [category]
+      );
+      if (catRes.rows.length === 0) throw new Error("Category not found");
+      categoryId = catRes.rows[0].category_id;
+    }
+    // Вставляем вопрос с учетом сложности
+    const insQ = await client.query(
+      "INSERT INTO questions (question, category_id, difficulty) VALUES ($1, $2, $3) RETURNING row_id",
+      [question, categoryId, difficulty]
+    );
+    const questionId = insQ.rows[0].row_id;
+    // Вставляем ответы
+    for (let i = 0; i < answers.length; i++) {
+      const ans = answers[i];
+      await client.query(
+        "INSERT INTO answers (question_id, answer, correct) VALUES ($1, $2, $3)",
+        [questionId, ans.text, !!ans.correct]
+      );
+    }
+    await client.query("COMMIT");
+    res.json({ success: true, categoryId, questionId });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("DB ERROR /add-question-full:", err);
+    res.status(500).json({ error: "Database error" });
+  } finally {
+    client.release();
+  }
+});

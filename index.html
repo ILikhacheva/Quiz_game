@@ -135,6 +135,55 @@
       </form>
     </div>
   </div>
+
+
+<!--Модальное окно для добавления вопросов-->
+
+  <div id="AddQuestionsOverlay" class="modal-overlay" style="display:none;">
+    <div id="AddModal" class="modal-window" style="min-width:340px;max-width:95vw;">
+      <button class="close-btn" onclick="closeAddModal()" title="Close">×</button>
+      <h2>Add Questions</h2>
+      <form id="AddForm" method="post" action="#">
+                <div class="form-group">
+                  <label>Difficulty:</label>
+                  <div style="display:flex;gap:16px;align-items:center;">
+                    <label><input type="radio" name="AddDifficulty" value="1" checked> Easy</label>
+                    <label><input type="radio" name="AddDifficulty" value="2"> Medium</label>
+                    <label><input type="radio" name="AddDifficulty" value="3"> Hard</label>
+                  </div>
+                </div>
+        <div class="form-group">
+          <label for="AddCategorySelect">Category:</label>
+          <select id="AddCategorySelect" name="AddCategorySelect" required style="width:100%;padding:8px;font-size:16px;">
+            <option value="">Select a category...</option>
+            <option value="__new__">Add new...</option>
+          </select>
+          <input type="text" id="AddCategoryNew" name="AddCategoryNew" placeholder="New category" style="width:100%;padding:8px;font-size:16px;display:none;margin-top:8px;" />
+        </div>
+        <div class="form-group">
+          <input type="text" id="AddQuestion" name="AddQuestion" placeholder="Question" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div class="form-group">
+          <input type="text" id="AddAnswer1" name="AddAnswer1" placeholder="Answer 1 always correct" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+                <div class="form-group">
+          <input type="text" id="AddAnswer2" name="AddAnswer2" placeholder="Answer 2" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+                <div class="form-group">
+          <input type="text" id="AddAnswer3" name="AddAnswer3" placeholder="Answer 3" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+                <div class="form-group">
+          <input type="text" id="AddAnswer4" name="AddAnswer4" placeholder="Answer 4" required style="width:100%;padding:8px;font-size:16px;" />
+        </div>
+        <div id="AddError" style="color:red;display:none;margin-bottom:8px;font-size:14px;"></div>
+        <div class="buttons" style="display:flex;gap:12px;align-items:center;">
+          <button type="submit" class="btn btn-primary">Add</button>
+          <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="NameModalOverlay" class="modal-overlay" style="display: none">
     <div id="NameModal" class="modal-window">
       <h2>Enter your name</h2>

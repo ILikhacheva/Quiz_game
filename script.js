@@ -1,8 +1,137 @@
 // --- Sign In / Register Modal Logic ---
 document.addEventListener("DOMContentLoaded", function () {
+  // --- Обработка отправки формы добавления вопроса ---
+  const addForm = document.getElementById("AddForm");
+  if (addForm) {
+    addForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const category = addCategorySelect.value;
+      const newCategory = addCategoryNew.value.trim();
+      const question = document.getElementById("AddQuestion").value.trim();
+      const answer1 = document.getElementById("AddAnswer1").value.trim();
+      const answer2 = document.getElementById("AddAnswer2").value.trim();
+      const answer3 = document.getElementById("AddAnswer3").value.trim();
+      const answer4 = document.getElementById("AddAnswer4").value.trim();
+      const errorDiv = document.getElementById("AddError");
+      errorDiv.style.display = "none";
+      // Новое: сложность
+      const difficulty =
+        (addForm.querySelector('input[name="AddDifficulty"]:checked') || {})
+          .value || "1";
+      // Проверка
+      if (!question || !answer1 || !answer2 || !answer3 || !answer4) {
+        errorDiv.textContent = "Fill in all fields";
+        errorDiv.style.display = "block";
+        return;
+      }
+      if (category === "") {
+        errorDiv.textContent = "Select a category or add new";
+        errorDiv.style.display = "block";
+        return;
+      }
+      if (category === "__new__" && !newCategory) {
+        errorDiv.textContent = "Enter new category name";
+        errorDiv.style.display = "block";
+        return;
+      }
+      // Формируем массив ответов, первый всегда correct
+      const answers = [
+        { text: answer1, correct: true },
+        { text: answer2, correct: false },
+        { text: answer3, correct: false },
+        { text: answer4, correct: false },
+      ];
+      try {
+        const res = await fetch("/add-question-full", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category,
+            newCategory,
+            question,
+            difficulty,
+            answers,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          errorDiv.textContent = data.error || "Error saving question";
+          errorDiv.style.display = "block";
+          return;
+        }
+        // Успех
+        errorDiv.style.display = "none";
+        addForm.reset();
+        addCategoryNew.style.display = "none";
+        alert("Question added!");
+        closeAddModal();
+      } catch (e) {
+        errorDiv.textContent = "Server error";
+        errorDiv.style.display = "block";
+      }
+    });
+  }
+  // --- Категории для формы добавления вопроса ---
+  const addCategorySelect = document.getElementById("AddCategorySelect");
+  const addCategoryNew = document.getElementById("AddCategoryNew");
+
+  // Загрузить категории с сервера
+  async function loadCategoriesForAddForm() {
+    if (!addCategorySelect) return;
+    try {
+      const res = await fetch("/categories");
+      const categories = await res.json();
+      // Удалить все кроме первых двух опций
+      while (addCategorySelect.options.length > 2) {
+        addCategorySelect.remove(1); // всегда оставляем 'Select...' и 'Add new...'
+      }
+      categories.forEach((cat) => {
+        const opt = document.createElement("option");
+        opt.value = cat.name;
+        opt.textContent = cat.name;
+        addCategorySelect.insertBefore(
+          opt,
+          addCategorySelect.options[addCategorySelect.options.length - 1]
+        );
+      });
+    } catch (e) {
+      // Ошибка загрузки категорий
+    }
+  }
+
+  if (addCategorySelect) {
+    addCategorySelect.addEventListener("change", function () {
+      if (addCategorySelect.value === "__new__") {
+        addCategoryNew.style.display = "block";
+        addCategoryNew.required = true;
+      } else {
+        addCategoryNew.style.display = "none";
+        addCategoryNew.required = false;
+      }
+    });
+    // Загружаем категории при открытии модалки
+    const addQuestionsBtn = document.getElementById("add-questions-btn");
+    if (addQuestionsBtn) {
+      addQuestionsBtn.addEventListener("click", loadCategoriesForAddForm);
+    }
+  }
+  // Кнопка и модалка для добавления вопросов
+  const addQuestionsBtn = document.getElementById("add-questions-btn");
+  const addQuestionsOverlay = document.getElementById("AddQuestionsOverlay");
+  function openAddModal() {
+    if (addQuestionsOverlay) addQuestionsOverlay.style.display = "flex";
+  }
+  function closeAddModal() {
+    if (addQuestionsOverlay) addQuestionsOverlay.style.display = "none";
+  }
+  window.closeAddModal = closeAddModal;
+  if (addQuestionsBtn) {
+    addQuestionsBtn.addEventListener("click", function () {
+      openAddModal();
+    });
+  }
   // Открытие модалок
   const signInBtn = document.getElementById("sign-in-btn");
-  const addQuestionsBtn = document.getElementById("add-questions-btn");
   function updateAddQuestionsButton() {
     if (!addQuestionsBtn) return;
     if (quizState.userName && quizState.userName.trim().length > 0) {
@@ -22,6 +151,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     updateAddQuestionsButton();
   }
+
+  //Обработка клика по кнопке добавления вопросов
 
   // Обработка клика по кнопке входа/выхода
   if (signInBtn) {

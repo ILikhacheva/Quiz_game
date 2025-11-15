@@ -1,6 +1,182 @@
 // --- Sign In / Register Modal Logic ---
 // --- Логика модальных окон входа/регистрации ---
 document.addEventListener("DOMContentLoaded", function () {
+  // --- Scores Modal Logic ---
+  const scoresBtn = document.getElementById("show-scores-btn");
+  if (scoresBtn) {
+    scoresBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      openScoresModal();
+    });
+  }
+  // Закрытие по клику вне окна
+  const scoresOverlay = document.getElementById("ScoresModalOverlay");
+  if (scoresOverlay) {
+    scoresOverlay.addEventListener("click", function (e) {
+      if (e.target === scoresOverlay) closeScoresModal();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (scoresOverlay.style.display === "flex" && e.key === "Escape")
+        closeScoresModal();
+    });
+  }
+
+  // --- Name Modal Event Handlers ---
+  const nameForm = document.getElementById("NameForm");
+  const nameInput = document.getElementById("EndUserName");
+  const errorDiv = document.getElementById("EndUserNameError");
+  const overlay = document.getElementById("NameModalOverlay");
+  const changeNameBtn = document.getElementById("ChangeNameBtn");
+  let allowDuplicateName = false;
+  if (nameForm) {
+    nameForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      if (name.length > 32) {
+        errorDiv.textContent = "The name is too long (max 32 characters)";
+        errorDiv.style.display = "block";
+        return;
+      }
+      if (name.length === 0) {
+        hideNameModal();
+        const seconds = quizState.startTime
+          ? Math.floor((Date.now() - quizState.startTime) / 1000)
+          : 0;
+        await sendResultAndUpdateTop({
+          name: "",
+          score: quizState.score,
+          time: seconds,
+        });
+        allowDuplicateName = false;
+        return;
+      }
+      if (!allowDuplicateName) {
+        const exists = await checkParticipantName(name);
+        if (exists) {
+          errorDiv.textContent =
+            "This name already exists. Please enter a different one or click again to confirm.";
+          errorDiv.style.display = "block";
+          allowDuplicateName = true;
+          return;
+        }
+      }
+      errorDiv.style.display = "none";
+      hideNameModal();
+      quizState.userName = name;
+      const seconds = quizState.startTime
+        ? Math.floor((Date.now() - quizState.startTime) / 1000)
+        : 0;
+      await sendResultAndUpdateTop({
+        name,
+        score: quizState.score,
+        time: seconds,
+      });
+      allowDuplicateName = false;
+    });
+  }
+  if (changeNameBtn) {
+    changeNameBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (nameInput) nameInput.value = "";
+      if (errorDiv) errorDiv.style.display = "none";
+      if (nameInput) nameInput.focus();
+    });
+  }
+  if (overlay) {
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) {
+        hideNameModal();
+        const seconds = quizState.startTime
+          ? Math.floor((Date.now() - quizState.startTime) / 1000)
+          : 0;
+        sendResultAndUpdateTop({
+          name: "",
+          score: quizState.score,
+          time: seconds,
+        });
+      }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (overlay.style.display === "flex" && e.key === "Escape") {
+        hideNameModal();
+        const seconds = quizState.startTime
+          ? Math.floor((Date.now() - quizState.startTime) / 1000)
+          : 0;
+        sendResultAndUpdateTop({
+          name: "",
+          score: quizState.score,
+          time: seconds,
+        });
+      }
+    });
+  }
+
+  // --- Start Quiz Button and Choice Form ---
+  const startBtn = document.getElementById("start-quiz-btn");
+  if (startBtn) {
+    startBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      const welcomeGif = document.getElementById("welcomeGif");
+      if (welcomeGif) welcomeGif.style.display = "none";
+      openGameModal();
+    });
+  }
+  const form = document.getElementById("Choice-form");
+  if (form) {
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      document.getElementById("GameModalOverlay").style.display = "none";
+      const category = document.getElementById("Categories").value;
+      const difficulty = form.querySelector(
+        'input[name="UserDifficulty"]:checked'
+      )?.value;
+      let questions = [];
+      try {
+        const res = await fetch(
+          `http://localhost:3000/quiz?category=${category}&difficulty=${difficulty}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (!Array.isArray(data) || !data.length) {
+            alert("No questions for the selected parameters!");
+            console.error("Server returned an empty array of questions:", data);
+            return;
+          }
+          questions = data.map((q) => {
+            // Если q.answers — массив объектов с answer/correct, преобразуем
+            let answers, correct;
+            if (Array.isArray(q.answers) && typeof q.answers[0] === "object") {
+              answers = q.answers.map((a) => a.answer || a.text || "");
+              correct = q.answers.findIndex((a) => a.correct);
+            } else {
+              answers = Array.isArray(q.answers) ? q.answers.slice() : [];
+              correct = typeof q.correct === "number" ? q.correct : 0;
+            }
+            return {
+              question: q.question,
+              answers,
+              correct,
+            };
+          });
+        } else {
+          alert("Error fetching questions from server!");
+          console.error("Fetch error /quiz:", res.status, await res.text());
+          return;
+        }
+      } catch (e) {
+        alert("Error!");
+        console.error("Request to server failed:", e);
+        return;
+      }
+      // Не сбрасывать userName, если пользователь уже залогинен
+      if (!quizState.userName || quizState.userName.trim() === "") {
+        quizState.userName = "";
+      }
+      quizState.score = 0;
+      quizState.startTime = Date.now();
+      showQuiz(questions);
+    });
+  }
   // --- Обработка отправки формы добавления вопроса ---
   // --- Add question form submit logic ---
   const addForm = document.getElementById("AddForm");
@@ -40,12 +216,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       // Формируем массив ответов, первый всегда correct
       // Form answer array, first is always correct
-      const answers = [
-        { text: answer1, correct: true },
-        { text: answer2, correct: false },
-        { text: answer3, correct: false },
-        { text: answer4, correct: false },
-      ];
+      const answers = [answer1, answer2, answer3, answer4];
       try {
         const res = await fetch("/add-question-full", {
           method: "POST",
@@ -119,11 +290,13 @@ document.addEventListener("DOMContentLoaded", function () {
         addCategoryNew.required = false;
       }
     });
-    // Загружаем категории при открытии модалки
-    // Load categories when modal opens
+    // Один обработчик: загрузить категории и открыть модалку
     const addQuestionsBtn = document.getElementById("add-questions-btn");
     if (addQuestionsBtn) {
-      addQuestionsBtn.addEventListener("click", loadCategoriesForAddForm);
+      addQuestionsBtn.addEventListener("click", async function () {
+        await loadCategoriesForAddForm();
+        openAddModal();
+      });
     }
   }
   // Кнопка и модалка для добавления вопросов
@@ -138,9 +311,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   window.closeAddModal = closeAddModal;
   if (addQuestionsBtn) {
-    addQuestionsBtn.addEventListener("click", function () {
-      openAddModal();
-    });
+    // (удалено, теперь обработчик выше)
   }
   // Открытие модалок
   // Opening modals
@@ -171,6 +342,26 @@ document.addEventListener("DOMContentLoaded", function () {
   // Handle sign-in/sign-out button click
   if (signInBtn) {
     signInBtn.addEventListener("click", function () {
+      // Скрыть все modal-overlay на всякий случай
+      document.querySelectorAll(".modal-overlay").forEach((el) => {
+        el.style.display = "none";
+      });
+      // Скрыть все модальные оверлеи
+      const overlaysToClose = [
+        "SignInModalOverlay",
+        "RegisterModalOverlay",
+        "ScoresModalOverlay",
+        "GameModalOverlay",
+      ];
+      overlaysToClose.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+      });
+      // Скрыть модалку добавления вопроса, если открыта
+      const addQuestionsOverlay = document.getElementById(
+        "AddQuestionsOverlay"
+      );
+      if (addQuestionsOverlay) addQuestionsOverlay.style.display = "none";
       if (quizState.userName && quizState.userName.trim().length > 0) {
         // Выход
         // Logout
@@ -178,6 +369,21 @@ document.addEventListener("DOMContentLoaded", function () {
         updateStats();
         updateSignInButton();
         updateAddQuestionsButton();
+        // Скрыть stats и показать welcomeGif
+        const stats = document.getElementById("quiz-stats");
+        if (stats) {
+          stats.style.display = "none";
+          stats.innerHTML = "";
+        }
+        // Скрыть модалку ввода имени, если открыта
+        const nameOverlay = document.getElementById("NameModalOverlay");
+        if (nameOverlay) nameOverlay.style.display = "none";
+        // Скрыть quiz-container (результат/вопросы)
+        const quiz = document.getElementById("quiz-container");
+        if (quiz) quiz.style.display = "none";
+        // Показать welcomeGif
+        const welcomeGif = document.getElementById("welcomeGif");
+        if (welcomeGif) welcomeGif.style.display = "block";
       } else {
         openSignInModal();
       }
@@ -190,6 +396,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function openSignInModal() {
     if (signInOverlay) signInOverlay.style.display = "flex";
     if (registerOverlay) registerOverlay.style.display = "none";
+    // Скрыть quiz-container (результат/вопросы) и welcomeGif при входе
+    const quiz = document.getElementById("quiz-container");
+    if (quiz) quiz.style.display = "none";
+    const welcomeGif = document.getElementById("welcomeGif");
+    if (welcomeGif) welcomeGif.style.display = "none";
     const err = document.getElementById("SignInError");
     if (err) err.style.display = "none";
   }
@@ -267,6 +478,17 @@ document.addEventListener("DOMContentLoaded", function () {
         // Successful login
         closeSignInModal();
         quizState.userName = data.userName;
+        // Скрыть и очистить quiz-container и stats после входа
+        const quiz = document.getElementById("quiz-container");
+        if (quiz) {
+          quiz.innerHTML = "";
+          quiz.style.display = "none";
+        }
+        const stats = document.getElementById("quiz-stats");
+        if (stats) {
+          stats.style.display = "none";
+          stats.innerHTML = "";
+        }
         updateStats();
         updateSignInButton();
         alert("Welcome, " + data.userName + "!");
@@ -359,27 +581,6 @@ async function loadScoresTable() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  const scoresBtn = document.getElementById("show-scores-btn");
-  if (scoresBtn) {
-    scoresBtn.addEventListener("click", function (e) {
-      e.preventDefault();
-      openScoresModal();
-    });
-  }
-  // Закрытие по клику вне окна
-  // Close on click outside window
-  const scoresOverlay = document.getElementById("ScoresModalOverlay");
-  if (scoresOverlay) {
-    scoresOverlay.addEventListener("click", function (e) {
-      if (e.target === scoresOverlay) closeScoresModal();
-    });
-    document.addEventListener("keydown", function (e) {
-      if (scoresOverlay.style.display === "flex" && e.key === "Escape")
-        closeScoresModal();
-    });
-  }
-});
 // --- Name Modal Logic ---
 function showNameModal() {
   const overlay = document.getElementById("NameModalOverlay");
@@ -431,130 +632,25 @@ async function sendResultAndUpdateTop(result) {
       body: JSON.stringify(resultWithCategory),
     });
   } catch {}
-  // Обновляем имя и показываем результат
+  // Обновляем имя и показываем результат через updateStats
   quizState.userName = result.name || quizState.userName || "";
   quizState.showResultAfterGame = true;
-  const stats = document.getElementById("quiz-stats");
-  if (stats) {
-    stats.style.display = "block";
-    let nameBlock =
-      quizState.userName && quizState.userName.trim().length > 0
-        ? `<b>Name:</b> ${quizState.userName} &nbsp; `
-        : "";
-    const seconds = quizState.startTime
+  // Остановить таймер и зафиксировать финальное время
+  if (quizState.timerInterval) {
+    clearInterval(quizState.timerInterval);
+    quizState.timerInterval = null;
+  }
+  if (typeof result.time === "number") {
+    quizState.finalTime = result.time;
+  } else {
+    quizState.finalTime = quizState.startTime
       ? Math.floor((Date.now() - quizState.startTime) / 1000)
       : 0;
-    stats.innerHTML =
-      `<div style='font-weight:bold;margin-bottom:4px;'>Name&nbsp;&nbsp;Score&nbsp;&nbsp;Time</div>` +
-      `<div>${quizState.userName || "-"}&nbsp;&nbsp;${
-        quizState.score
-      }&nbsp;&nbsp;${seconds} сек.</div>`;
   }
   updateStats();
 }
 
 // --- Name Modal Event Handlers ---
-document.addEventListener("DOMContentLoaded", function () {
-  const nameForm = document.getElementById("NameForm");
-  const nameInput = document.getElementById("EndUserName");
-  const errorDiv = document.getElementById("EndUserNameError");
-  const overlay = document.getElementById("NameModalOverlay");
-  const changeNameBtn = document.getElementById("ChangeNameBtn");
-  // Флаг: пользователь подтвердил дубликат имени
-  // Flag: user confirmed duplicate name
-  let allowDuplicateName = false;
-  if (nameForm) {
-    nameForm.addEventListener("submit", async function (e) {
-      e.preventDefault();
-      const name = nameInput.value.trim();
-      if (name.length > 32) {
-        errorDiv.textContent = "The name is too long (max 32 characters)";
-        errorDiv.style.display = "block";
-        return;
-      }
-      if (name.length === 0) {
-        // Разрешить пропуск (аноним)
-        // Allow skip (anonymous)
-        hideNameModal();
-        const seconds = quizState.startTime
-          ? Math.floor((Date.now() - quizState.startTime) / 1000)
-          : 0;
-        await sendResultAndUpdateTop({
-          name: "",
-          score: quizState.score,
-          time: seconds,
-        });
-        allowDuplicateName = false;
-        return;
-      }
-      // Проверка на дубликат
-      // Check for duplicate
-      if (!allowDuplicateName) {
-        const exists = await checkParticipantName(name);
-        if (exists) {
-          errorDiv.textContent =
-            "This name already exists. Please enter a different one or click again to confirm.";
-          errorDiv.style.display = "block";
-          allowDuplicateName = true;
-          return;
-        }
-      }
-      // Если дошли сюда — либо имя уникально, либо пользователь подтвердил дубликат
-      // If we got here, either the name is unique or the user confirmed the duplicate
-      errorDiv.style.display = "none";
-      hideNameModal();
-      quizState.userName = name;
-      const seconds = quizState.startTime
-        ? Math.floor((Date.now() - quizState.startTime) / 1000)
-        : 0;
-      await sendResultAndUpdateTop({
-        name,
-        score: quizState.score,
-        time: seconds,
-      });
-      allowDuplicateName = false;
-    });
-  }
-  if (changeNameBtn) {
-    changeNameBtn.addEventListener("click", function (e) {
-      e.preventDefault();
-      if (nameInput) nameInput.value = "";
-      if (errorDiv) errorDiv.style.display = "none";
-      if (nameInput) nameInput.focus();
-    });
-  }
-  // Allow closing modal with Escape key or clicking overlay
-  if (overlay) {
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) {
-        hideNameModal();
-        // Save as anonymous
-        const seconds = quizState.startTime
-          ? Math.floor((Date.now() - quizState.startTime) / 1000)
-          : 0;
-        sendResultAndUpdateTop({
-          name: "",
-          score: quizState.score,
-          time: seconds,
-        });
-      }
-    });
-    document.addEventListener("keydown", function (e) {
-      if (overlay.style.display === "flex" && e.key === "Escape") {
-        hideNameModal();
-        // Save as anonymous
-        const seconds = quizState.startTime
-          ? Math.floor((Date.now() - quizState.startTime) / 1000)
-          : 0;
-        sendResultAndUpdateTop({
-          name: "",
-          score: quizState.score,
-          time: seconds,
-        });
-      }
-    });
-  }
-});
 // Заглушка для функции обновления статистики
 // Stats update stub function
 function updateStats() {
@@ -580,15 +676,20 @@ function updateStats() {
     quizState.showResultAfterGame
   ) {
     stats.style.display = "block";
-    // Если показываем результат после игры, не перезаписываем stats.innerHTML
-    if (!quizState.showResultAfterGame) {
-      const seconds = Math.floor((Date.now() - quizState.startTime) / 1000);
-      let nameBlock = "";
-      if (quizState.userName && quizState.userName.trim().length > 0) {
-        nameBlock = `<b>Name:</b> ${quizState.userName} &nbsp; `;
-      }
-      stats.innerHTML = `${nameBlock}<b>Score:</b> ${quizState.score} &nbsp; <b>Time:</b> ${seconds} сек.`;
+    let seconds;
+    if (
+      quizState.showResultAfterGame &&
+      typeof quizState.finalTime === "number"
+    ) {
+      seconds = quizState.finalTime;
+    } else {
+      seconds = Math.floor((Date.now() - quizState.startTime) / 1000);
     }
+    let nameBlock = "";
+    if (quizState.userName && quizState.userName.trim().length > 0) {
+      nameBlock = `<b>Name:</b> ${quizState.userName} &nbsp; `;
+    }
+    stats.innerHTML = `${nameBlock}<b>Score:</b> ${quizState.score} &nbsp; <b>Time:</b> ${seconds} sec.`;
   } else {
     stats.style.display = "none";
     stats.innerHTML = "";
@@ -636,6 +737,7 @@ function showQuiz(questions) {
   quizState.score = 0; // Reset score
   quizState.startTime = Date.now(); // Record start time
   quizState.showResultAfterGame = false;
+  quizState.finalTime = undefined; // Сброс финального времени
   // Save selected category
   const catSelect = document.getElementById("Categories");
   if (catSelect) {
@@ -675,16 +777,35 @@ function renderCurrentQuestion() {
   // Проверка завершения викторины
   // Check for quiz completion
   if (quizState.current >= quizState.questions.length) {
+    // Фиксируем финальное время и останавливаем таймер сразу
+    if (typeof quizState.finalTime !== "number") {
+      quizState.finalTime = quizState.startTime
+        ? Math.floor((Date.now() - quizState.startTime) / 1000)
+        : 0;
+    }
+    if (quizState.timerInterval) {
+      clearInterval(quizState.timerInterval);
+      quizState.timerInterval = null;
+    }
+    quizState.showResultAfterGame = true;
+    updateStats();
     quiz.innerHTML =
       '<div id="quiz-completed-message" style="font-size: 2.5rem; color: #f8f6d0; text-align: center; margin: 60px 0; font-weight: bold;">Quiz completed!</div>';
-    if (quizState.timerInterval) clearInterval(quizState.timerInterval);
     setTimeout(() => {
       quiz.innerHTML = "";
-      // Показать анимацию после завершения игры
-      // Show animation after game completion
-      const welcomeGif = document.getElementById("welcomeGif");
-      if (welcomeGif) welcomeGif.style.display = "block";
-      showNameModal();
+      // Если имя пользователя уже есть, не показываем welcomeGif, сразу отправляем результат
+      if (quizState.userName && quizState.userName.trim().length > 0) {
+        sendResultAndUpdateTop({
+          name: quizState.userName,
+          score: quizState.score,
+          time: quizState.finalTime || 0,
+        });
+      } else {
+        // Показать анимацию после завершения игры
+        const welcomeGif = document.getElementById("welcomeGif");
+        if (welcomeGif) welcomeGif.style.display = "block";
+        showNameModal();
+      }
     }, 2000);
     return;
   }
@@ -734,13 +855,6 @@ function renderCurrentQuestion() {
   }
 }
 
-function openGameModal() {
-  // Просто обновляем имя и вызываем updateStats, чтобы имя появилось в stats
-  // Just update the name and call updateStats to show the name in stats
-  quizState.userName = result.name || quizState.userName || "";
-  updateStats();
-}
-
 // Скрывает модальное окно
 // Hides the modal window
 function closeGameModal() {
@@ -753,78 +867,6 @@ function closeGameModal() {
 
 // Добавляем обработчик на кнопку "Start Quiz"
 // Add event handler to "Start Quiz" button
-document.addEventListener("DOMContentLoaded", function () {
-  const startBtn = document.getElementById("start-quiz-btn");
-  if (startBtn) {
-    startBtn.addEventListener("click", function (e) {
-      e.preventDefault();
-      // Скрыть анимацию при старте
-      // Hide animation on start
-      const welcomeGif = document.getElementById("welcomeGif");
-      if (welcomeGif) welcomeGif.style.display = "none";
-      openGameModal();
-    });
-  }
-
-  // Добавить обработчик отправки формы выбора
-  // Add handler for choice form submission
-  const form = document.getElementById("Choice-form");
-  if (form) {
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
-      // alert удалён, добавлен вывод полученных вопросов ниже
-      // alert removed, added display of received questions below
-      document.getElementById("GameModalOverlay").style.display = "none";
-      // Получаем параметры из формы
-      // Get parameters from form
-      const category = document.getElementById("Categories").value;
-      const difficulty = form.querySelector(
-        'input[name="UserDifficulty"]:checked'
-      )?.value;
-      // Запрос к серверу
-      // Request to server
-      let questions = [];
-      try {
-        const res = await fetch(
-          `http://localhost:3000/quiz?category=${category}&difficulty=${difficulty}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (!Array.isArray(data) || !data.length) {
-            alert("No questions for the selected parameters!");
-            console.error("Server returned an empty array of questions:", data);
-            return;
-          }
-          // Преобразуем ответы для showQuiz
-          // Transform answers for showQuiz
-          questions = data.map((q) => {
-            const answers = q.answers.map((a) => a.answer);
-            const correct = q.answers.findIndex((a) => a.correct);
-            return {
-              question: q.question,
-              answers,
-              correct,
-            };
-          });
-        } else {
-          alert("Error fetching questions from server!");
-          console.error("Fetch error /quiz:", res.status, await res.text());
-          return;
-        }
-      } catch (e) {
-        alert("Error!");
-        console.error("Request to server failed:", e);
-        return;
-      }
-      // Сбросить имя, счетчик и таймер
-      // Reset name, score, and timer
-      quizState.userName = "";
-      quizState.score = 0;
-      quizState.startTime = Date.now();
-      showQuiz(questions);
-    });
-  }
-});
 
 // Заполняет выпадающий список категориями из API
 // Fills the dropdown list with categories from the API

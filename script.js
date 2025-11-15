@@ -1,6 +1,26 @@
 // --- Sign In / Register Modal Logic ---
 // --- Логика модальных окон входа/регистрации ---
 document.addEventListener("DOMContentLoaded", function () {
+  // Сбросить состояние викторины при загрузке страницы
+  // Reset quiz state on page load
+  resetQuizState();
+  // Сброс состояния викторины (очистка всех данных)
+  // Reset quiz state (clear all data)
+  function resetQuizState() {
+    if (quizState.timerInterval) {
+      clearInterval(quizState.timerInterval);
+      quizState.timerInterval = null;
+    }
+    quizState.questions = [];
+    quizState.current = 0;
+    quizState.userName = "";
+    quizState.score = 0;
+    quizState.startTime = 0;
+    quizState.finalTime = undefined;
+    quizState.showResultAfterGame = false;
+    quizState.category_id = null;
+    updateStats && updateStats();
+  }
   // --- Scores Modal Logic ---
   const scoresBtn = document.getElementById("show-scores-btn");
   if (scoresBtn) {
@@ -10,6 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
   // Закрытие по клику вне окна
+  // Close on click outside the window
   const scoresOverlay = document.getElementById("ScoresModalOverlay");
   if (scoresOverlay) {
     scoresOverlay.addEventListener("click", function (e) {
@@ -37,15 +58,20 @@ document.addEventListener("DOMContentLoaded", function () {
         errorDiv.style.display = "block";
         return;
       }
-      if (name.length === 0) {
-        hideNameModal();
-        const seconds = quizState.startTime
+      // Используем quizState.finalTime, чтобы время не увеличивалось после завершения игры
+      // Use quizState.finalTime so that time does not increase after the game ends
+      let fixedTime =
+        typeof quizState.finalTime === "number"
+          ? quizState.finalTime
+          : quizState.startTime
           ? Math.floor((Date.now() - quizState.startTime) / 1000)
           : 0;
+      if (name.length === 0) {
+        hideNameModal();
         await sendResultAndUpdateTop({
           name: "",
           score: quizState.score,
-          time: seconds,
+          time: fixedTime,
         });
         allowDuplicateName = false;
         return;
@@ -63,13 +89,10 @@ document.addEventListener("DOMContentLoaded", function () {
       errorDiv.style.display = "none";
       hideNameModal();
       quizState.userName = name;
-      const seconds = quizState.startTime
-        ? Math.floor((Date.now() - quizState.startTime) / 1000)
-        : 0;
       await sendResultAndUpdateTop({
         name,
         score: quizState.score,
-        time: seconds,
+        time: fixedTime,
       });
       allowDuplicateName = false;
     });
@@ -169,6 +192,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       // Не сбрасывать userName, если пользователь уже залогинен
+      // Do not reset userName if the user is already logged in
       if (!quizState.userName || quizState.userName.trim() === "") {
         quizState.userName = "";
       }
@@ -291,6 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
     // Один обработчик: загрузить категории и открыть модалку
+    // Single handler: load categories and open modal
     const addQuestionsBtn = document.getElementById("add-questions-btn");
     if (addQuestionsBtn) {
       addQuestionsBtn.addEventListener("click", async function () {
@@ -311,7 +336,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   window.closeAddModal = closeAddModal;
   if (addQuestionsBtn) {
-    // (удалено, теперь обработчик выше)
   }
   // Открытие модалок
   // Opening modals
@@ -343,10 +367,12 @@ document.addEventListener("DOMContentLoaded", function () {
   if (signInBtn) {
     signInBtn.addEventListener("click", function () {
       // Скрыть все modal-overlay на всякий случай
+      // Hide all modal overlays just in case
       document.querySelectorAll(".modal-overlay").forEach((el) => {
         el.style.display = "none";
       });
       // Скрыть все модальные оверлеи
+      // Hide all modal overlays
       const overlaysToClose = [
         "SignInModalOverlay",
         "RegisterModalOverlay",
@@ -358,6 +384,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (el) el.style.display = "none";
       });
       // Скрыть модалку добавления вопроса, если открыта
+      // Hide add question modal if open
       const addQuestionsOverlay = document.getElementById(
         "AddQuestionsOverlay"
       );
@@ -370,18 +397,22 @@ document.addEventListener("DOMContentLoaded", function () {
         updateSignInButton();
         updateAddQuestionsButton();
         // Скрыть stats и показать welcomeGif
+        // Hide stats and show welcomeGif
         const stats = document.getElementById("quiz-stats");
         if (stats) {
           stats.style.display = "none";
           stats.innerHTML = "";
         }
         // Скрыть модалку ввода имени, если открыта
+        // Hide name input modal if open
         const nameOverlay = document.getElementById("NameModalOverlay");
         if (nameOverlay) nameOverlay.style.display = "none";
         // Скрыть quiz-container (результат/вопросы)
+        // Hide quiz-container (results/questions)
         const quiz = document.getElementById("quiz-container");
         if (quiz) quiz.style.display = "none";
         // Показать welcomeGif
+        // Show welcomeGif
         const welcomeGif = document.getElementById("welcomeGif");
         if (welcomeGif) welcomeGif.style.display = "block";
       } else {
@@ -394,9 +425,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const openRegisterLink = document.getElementById("open-register-link");
   const openSignInLink = document.getElementById("open-signin-link");
   function openSignInModal() {
+    // Сбросить состояние викторины при входе пользователя
+    // Reset quiz state (clear all data)
+    resetQuizState();
     if (signInOverlay) signInOverlay.style.display = "flex";
     if (registerOverlay) registerOverlay.style.display = "none";
     // Скрыть quiz-container (результат/вопросы) и welcomeGif при входе
+    // Hide quiz-container (results/questions) and welcomeGif on sign-in
     const quiz = document.getElementById("quiz-container");
     if (quiz) quiz.style.display = "none";
     const welcomeGif = document.getElementById("welcomeGif");
@@ -479,6 +514,7 @@ document.addEventListener("DOMContentLoaded", function () {
         closeSignInModal();
         quizState.userName = data.userName;
         // Скрыть и очистить quiz-container и stats после входа
+        // Hide and clear quiz-container and stats after login
         const quiz = document.getElementById("quiz-container");
         if (quiz) {
           quiz.innerHTML = "";
@@ -624,6 +660,7 @@ async function checkParticipantName(name) {
 async function sendResultAndUpdateTop(result) {
   try {
     // Добавляем category_id из состояния
+    // Add category_id from state
     const categoryId = quizState.category_id || null;
     const resultWithCategory = { ...result, category_id: categoryId };
     await fetch("http://localhost:3000/add-participant", {
@@ -633,9 +670,11 @@ async function sendResultAndUpdateTop(result) {
     });
   } catch {}
   // Обновляем имя и показываем результат через updateStats
+  // Update name and show result via updateStats
   quizState.userName = result.name || quizState.userName || "";
   quizState.showResultAfterGame = true;
   // Остановить таймер и зафиксировать финальное время
+  // Stop timer and record final time
   if (quizState.timerInterval) {
     clearInterval(quizState.timerInterval);
     quizState.timerInterval = null;
@@ -650,7 +689,6 @@ async function sendResultAndUpdateTop(result) {
   updateStats();
 }
 
-// --- Name Modal Event Handlers ---
 // Заглушка для функции обновления статистики
 // Stats update stub function
 function updateStats() {
@@ -802,6 +840,7 @@ function renderCurrentQuestion() {
         });
       } else {
         // Показать анимацию после завершения игры
+        // Show animation after game completion
         const welcomeGif = document.getElementById("welcomeGif");
         if (welcomeGif) welcomeGif.style.display = "block";
         showNameModal();
@@ -809,8 +848,6 @@ function renderCurrentQuestion() {
     }, 2000);
     return;
   }
-
-  // ...existing code...
 
   // Отобразить текущий вопрос и варианты ответов
   // Display current question and answers

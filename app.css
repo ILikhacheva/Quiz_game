@@ -40,6 +40,7 @@
   z-index: 100;
 }
 /* Стили для ответов викторины */
+/* Tyylit visailun vastauksille */
 #quiz-container {
   display: flex;
   flex-direction: column;
@@ -104,7 +105,8 @@ body::before {
   border: 0;
   position: relative;
 }
-/* Глобальные стили для обеспечения липкого футера / Globaalit tyylit tahmealle footerille */
+/* Глобальные стили для обеспечения липкого футера */
+/* Globaalit tyylit tahmealle footerille */
 html,
 body {
   height: 100%;
@@ -143,7 +145,8 @@ footer > div {
   background-color: #8f9091;
 }
 
-/* стили для модального оверлея и окна / Modalin peite- ja ikkunatyylit */
+/* стили для модального оверлея и окна  */
+/* The styles for the modal overlay and window */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -187,6 +190,7 @@ footer > div {
 }
 
 /* Стили для формы в модальном окне */
+/* The styles for the form in the modal window */
 .modal-window form {
   display: flex;
   flex-direction: column;

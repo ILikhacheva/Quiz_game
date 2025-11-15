@@ -1,55 +1,57 @@
 // ---
 // НАСТРОЙКА ПОДКЛЮЧЕНИЯ К БАЗЕ ДАННЫХ
-// TIETOKANTAYHTEYDEN KONFIGURAATIO
+// DATABASE CONNECTION SETUP
 // ---
 // Загружаем переменные окружения из .env файла
-// Ladataan ympäristömuuttujat .env tiedostosta
+// Load environment variables from .env file
 
-// Загрузка переменных окружения из .env / Ympäristömuuttujien lataus .env-tiedostosta
+// Загрузка переменных окружения из .env
+// Loading environment variables from .env
 require("dotenv").config();
 
-// Импортируем необходимые модули / Tuodaan tarvittavat moduulit
+// Импортируем необходимые модули
+// Import required modules
 const express = require("express");
-const bcrypt = require("bcrypt"); // Для хеширования паролей / Salasanojen tiivistykseen
-const cors = require("cors"); // Для кросс-доменных запросов / Cross-origin pyyntöjä varten
-const { Pool } = require("pg"); // PostgreSQL клиент / PostgreSQL asiakasohjelma
-const app = express(); // Экземпляр приложения Express / Express-sovelluksen instanssi
+const bcrypt = require("bcrypt"); // Для хеширования паролей / For password hashing
+const cors = require("cors"); // Для кросс-доменных запросов / For cross-origin requests
+const { Pool } = require("pg"); // PostgreSQL клиент / PostgreSQL client
+const app = express(); // Экземпляр приложения Express / Express app instance
 
 // Настраиваем CORS для разрешения кросс-доменных запросов
-// Konfiguroidaan CORS sallimaan cross-origin pyynnöt
+// Configure CORS to allow cross-origin requests
 app.use(
   cors({
-    origin: "*", // Разрешаем запросы с любого домена / Sallitaan pyynnöt mistä tahansa domainista
+    origin: "*", // Разрешаем запросы с любого домена / Allow requests from any domain
   })
 );
 
 // Подключаем обслуживание статических файлов из текущей директории
-// Kytketään staattisten tiedostojen tarjoilu nykyisestä hakemistosta
+// Serve static files from current directory
 app.use(express.static(__dirname));
 
 // Подключаем middleware для парсинга JSON в запросах
-// Kytketään middleware JSON:n jäsentämiseen pyynnöissä
+// Attach middleware for parsing JSON in requests
 app.use(express.json());
 
 // Создаем пул подключений к PostgreSQL базе данных
-// Luodaan PostgreSQL tietokantayhteyksien pool
+// Create a connection pool to PostgreSQL database
 const pool = new Pool({
-  host: process.env.DB_HOST || "localhost", // Хост БД / Tietokannan isäntä
-  port: process.env.DB_PORT || 5432, // Порт БД / Tietokannan portti
-  database: process.env.DB_NAME || "peli", // Имя БД / Tietokannan nimi
+  host: process.env.DB_HOST || "localhost",
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || "peli",
   user: process.env.DB_USER || "peli_sivu",
   password: process.env.DB_PASSWORD || "12345",
 });
 
 // Запускаем сервер на порту 3000
-// Käynnistetään palvelin portissa 3000
+// Start server on port 3000
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// Получить список категорий (GET /categories)
-// Hae kategoriat (GET /categories)
+// Получить список категорий
+// Get list of categories
 app.get("/categories", async (req, res) => {
   try {
     const result = await pool.query(
@@ -62,8 +64,9 @@ app.get("/categories", async (req, res) => {
   }
 });
 
-// Проверить, есть ли участник с таким именем (GET /check-participant)
-// Tarkista, onko osallistujaa tällä nimellä (GET /check-participant)
+// Проверить, есть ли участник с таким именем
+// Check if a participant with this name exists
+
 app.get("/check-participant", async (req, res) => {
   const { name } = req.query;
   if (!name) return res.status(400).json({ exists: false });
@@ -78,8 +81,8 @@ app.get("/check-participant", async (req, res) => {
   }
 });
 
-// Получить вопросы по категории и сложности (GET /quiz)
-// Hae kysymykset kategorian ja vaikeustason mukaan (GET /quiz)
+// Получить вопросы по категории и сложности
+// Get questions by category and difficulty
 app.get("/quiz", async (req, res) => {
   const { category, difficulty } = req.query;
   try {
@@ -93,7 +96,7 @@ app.get("/quiz", async (req, res) => {
   ORDER BY q.row_id, a.answer_id`,
       [category || null, difficulty || null]
     );
-    // Группируем ответы по вопросам / Ryhmitellään vastaukset kysymyksittäin
+    // Группируем ответы по вопросам / Group answers by question
     const questionsMap = {};
     result.rows.forEach((row) => {
       if (!questionsMap[row.question_id]) {
@@ -119,8 +122,8 @@ app.get("/quiz", async (req, res) => {
   }
 });
 
-// Добавить участника и результат, если входит в топ-20 (POST /add-participant)
-// Lisää osallistuja ja tulos, jos pääsee top-20:een (POST /add-participant)
+// Добавить участника и результат, если входит в топ-20
+// Add participant and result if in top-20
 app.post("/add-participant", async (req, res) => {
   const { name, score, time, category_id } = req.body;
   if (
@@ -133,12 +136,14 @@ app.post("/add-participant", async (req, res) => {
   }
   try {
     // Вставляем нового участника с категорией
+    // Insert new participant with category
     await pool.query(
       "INSERT INTO participants (name, score, time, category_id) VALUES ($1, $2, $3, $4)",
       [name, score, time, category_id]
     );
 
-    // Оставляем только топ-20 (по очкам, потом по времени)
+    // Оставляем только топ-20
+    // Keep only top-20
     await pool.query(
       `DELETE FROM participants WHERE row_id NOT IN (
         SELECT row_id FROM participants
@@ -154,8 +159,8 @@ app.post("/add-participant", async (req, res) => {
   }
 });
 
-// Получить топ-20 участников (GET /top-participants)
-// Hae top-20 osallistujaa (GET /top-participants)
+// Получить топ-20 участников
+// Get top-20 participants
 app.get("/top-participants", async (req, res) => {
   try {
     const result = await pool.query(
@@ -168,7 +173,8 @@ app.get("/top-participants", async (req, res) => {
   }
 });
 
-// Получить топ-20 участников с категориями (GET /top-participants-full)
+// Получить топ-20 участников с категориями
+// Get top-20 participants with categories
 app.get("/top-participants-full", async (req, res) => {
   try {
     const result = await pool.query(
@@ -186,6 +192,7 @@ app.get("/top-participants-full", async (req, res) => {
 });
 
 // Вход пользователя (POST /login)
+// User login (POST /login)
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -193,6 +200,7 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Email and password required." });
     }
     // Найти пользователя по email
+    // Find user by email
     const userResult = await pool.query(
       "SELECT user_id, user_name, user_password FROM users WHERE user_email = $1",
       [email]
@@ -202,11 +210,13 @@ app.post("/login", async (req, res) => {
     }
     const user = userResult.rows[0];
     // Проверить пароль
+    // Check password
     const match = await bcrypt.compare(password, user.user_password);
     if (!match) {
       return res.status(400).json({ error: "Invalid email or password." });
     }
     // Можно добавить генерацию токена, но пока просто успех
+    // You can add token generation, but for now just success
     res.json({ success: true, userName: user.user_name });
   } catch (err) {
     console.error("DB ERROR /login:", err);
@@ -214,6 +224,7 @@ app.post("/login", async (req, res) => {
   }
 });
 // Регистрация пользователя (POST /register)
+// User registration (POST /register)
 app.post("/register", async (req, res) => {
   try {
     const { email, password, password2, kod, userName } = req.body;
@@ -227,6 +238,7 @@ app.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Invalid code word." });
     }
     // Проверка, что email не занят
+    // Check that email is not taken
     const userCheck = await pool.query(
       "SELECT user_id FROM users WHERE user_email = $1",
       [email]
@@ -235,9 +247,11 @@ app.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Email already registered." });
     }
     // Хешируем пароль
+    // Hash the password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     // Сохраняем пользователя
+    // Save the user
     await pool.query(
       `INSERT INTO users (user_name, user_password, user_email) VALUES ($1, $2, $3)`,
       [userName, hashedPassword, email]
@@ -249,7 +263,8 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Добавить вопрос с категорией и ответами (POST /add-question-full)
+// Добавить вопрос с категорией и ответами
+// Add question with category and answers (POST /add-question-full)
 app.post("/add-question-full", async (req, res) => {
   const { category, newCategory, question, difficulty, answers } = req.body;
   // answers: [{text: '...', correct: true/false}, ...]
@@ -269,6 +284,7 @@ app.post("/add-question-full", async (req, res) => {
       if (!newCategory || !newCategory.trim())
         throw new Error("No new category");
       // Проверяем, есть ли уже такая категория
+      // Check if such category already exists
       const catRes = await client.query(
         "SELECT category_id FROM categories WHERE LOWER(name) = LOWER($1)",
         [newCategory.trim()]
@@ -284,6 +300,7 @@ app.post("/add-question-full", async (req, res) => {
       }
     } else {
       // Найти id выбранной категории
+      // Find id of selected category
       const catRes = await client.query(
         "SELECT category_id FROM categories WHERE name = $1",
         [category]
@@ -292,12 +309,14 @@ app.post("/add-question-full", async (req, res) => {
       categoryId = catRes.rows[0].category_id;
     }
     // Вставляем вопрос с учетом сложности
+    // Insert question with difficulty
     const insQ = await client.query(
       "INSERT INTO questions (question, category_id, difficulty) VALUES ($1, $2, $3) RETURNING row_id",
       [question, categoryId, difficulty]
     );
     const questionId = insQ.rows[0].row_id;
     // Вставляем ответы
+    // Insert answers
     for (let i = 0; i < answers.length; i++) {
       const ans = answers[i];
       await client.query(

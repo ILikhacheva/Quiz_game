@@ -423,7 +423,6 @@ async function checkParticipantName(name) {
 async function sendResultAndUpdateTop(result) {
   try {
     // Добавляем category_id из состояния
-    // Add category_id from state
     const categoryId = quizState.category_id || null;
     const resultWithCategory = { ...result, category_id: categoryId };
     await fetch("http://localhost:3000/add-participant", {
@@ -432,8 +431,25 @@ async function sendResultAndUpdateTop(result) {
       body: JSON.stringify(resultWithCategory),
     });
   } catch {}
-  // Просто обновляем имя и вызываем updateStats, чтобы имя появилось в stats
+  // Обновляем имя и показываем результат
   quizState.userName = result.name || quizState.userName || "";
+  quizState.showResultAfterGame = true;
+  const stats = document.getElementById("quiz-stats");
+  if (stats) {
+    stats.style.display = "block";
+    let nameBlock =
+      quizState.userName && quizState.userName.trim().length > 0
+        ? `<b>Name:</b> ${quizState.userName} &nbsp; `
+        : "";
+    const seconds = quizState.startTime
+      ? Math.floor((Date.now() - quizState.startTime) / 1000)
+      : 0;
+    stats.innerHTML =
+      `<div style='font-weight:bold;margin-bottom:4px;'>Name&nbsp;&nbsp;Score&nbsp;&nbsp;Time</div>` +
+      `<div>${quizState.userName || "-"}&nbsp;&nbsp;${
+        quizState.score
+      }&nbsp;&nbsp;${seconds} сек.</div>`;
+  }
   updateStats();
 }
 
@@ -557,18 +573,22 @@ function updateStats() {
   const stats = document.getElementById("quiz-stats");
   if (!stats) return;
   if (
-    quizState.startTime &&
-    quizState.questions &&
-    quizState.questions.length > 0 &&
-    quizState.current < quizState.questions.length
+    (quizState.startTime &&
+      quizState.questions &&
+      quizState.questions.length > 0 &&
+      quizState.current < quizState.questions.length) ||
+    quizState.showResultAfterGame
   ) {
     stats.style.display = "block";
-    const seconds = Math.floor((Date.now() - quizState.startTime) / 1000);
-    let nameBlock = "";
-    if (quizState.userName && quizState.userName.trim().length > 0) {
-      nameBlock = `<b>Name:</b> ${quizState.userName} &nbsp; `;
+    // Если показываем результат после игры, не перезаписываем stats.innerHTML
+    if (!quizState.showResultAfterGame) {
+      const seconds = Math.floor((Date.now() - quizState.startTime) / 1000);
+      let nameBlock = "";
+      if (quizState.userName && quizState.userName.trim().length > 0) {
+        nameBlock = `<b>Name:</b> ${quizState.userName} &nbsp; `;
+      }
+      stats.innerHTML = `${nameBlock}<b>Score:</b> ${quizState.score} &nbsp; <b>Time:</b> ${seconds} сек.`;
     }
-    stats.innerHTML = `${nameBlock}<b>Score:</b> ${quizState.score} &nbsp; <b>Time:</b> ${seconds} сек.`;
   } else {
     stats.style.display = "none";
     stats.innerHTML = "";
@@ -615,6 +635,7 @@ function showQuiz(questions) {
   quizState.current = 0; // Reset current question
   quizState.score = 0; // Reset score
   quizState.startTime = Date.now(); // Record start time
+  quizState.showResultAfterGame = false;
   // Save selected category
   const catSelect = document.getElementById("Categories");
   if (catSelect) {
@@ -664,7 +685,7 @@ function renderCurrentQuestion() {
       const welcomeGif = document.getElementById("welcomeGif");
       if (welcomeGif) welcomeGif.style.display = "block";
       showNameModal();
-    }, 1000);
+    }, 2000);
     return;
   }
 
